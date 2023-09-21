@@ -24,7 +24,7 @@ ${artifacts_dir}         ${OUTPUT DIR}
 *** Tasks ***
 Provision Self-Managed Cluster
     [Documentation]    Provision a self-managed cluster
-    [Tags]  self_managed_provision
+    [Tags]  self_managed_provision-error
     Provision Cluster
     Claim Cluster
     Wait For Cluster To Be Ready
