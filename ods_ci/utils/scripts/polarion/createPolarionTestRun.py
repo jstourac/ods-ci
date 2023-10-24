@@ -70,7 +70,7 @@ def parse_args():
         help="certificate file",
         action="store",
         dest="certs_filepath",
-        default="/etc/pki/tls/RH-IT-Root-CA.crt",
+        default="/etc/pki/tls/Current-IT-Root-CAs.pem",
     )
     parser.add_argument(
         "-l",
