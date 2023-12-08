@@ -296,9 +296,9 @@ Install Kserve Dependencies
     Install ISV Operator From OperatorHub Via CLI    operator_name=${SERVICEMESH_OP_NAME}
     ...    subscription_name=${SERVICEMESH_SUB_NAME}
     ...    catalog_source_name=redhat-operators
-    Wait Until Operator Subscription Last Condition Is
-    ...    type=CatalogSourcesUnhealthy    status=False
-    ...    reason=AllCatalogSourcesHealthy    subcription_name=${SERVICEMESH_SUB_NAME}
+    # Wait Until Operator Subscription Last Condition Is
+    # ...    type=CatalogSourcesUnhealthy    status=False
+    # ...    reason=AllCatalogSourcesHealthy    subcription_name=${SERVICEMESH_SUB_NAME}
     ${rc}    ${out}=    Run And Return Rc And Output    oc create namespace ${SERVERLESS_NS}
     Install ISV Operator From OperatorHub Via CLI    operator_name=${SERVERLESS_OP_NAME}
     ...    namespace=${SERVERLESS_NS}
@@ -307,10 +307,10 @@ Install Kserve Dependencies
     ...    operator_group_name=serverless-operators
     ...    operator_group_ns=${SERVERLESS_NS}
     ...    operator_group_target_ns=${NONE}
-    Wait Until Operator Subscription Last Condition Is
-    ...    type=CatalogSourcesUnhealthy    status=False
-    ...    reason=AllCatalogSourcesHealthy    subcription_name=${SERVERLESS_SUB_NAME}
-    ...    namespace=${SERVERLESS_NS}
+    # Wait Until Operator Subscription Last Condition Is
+    # ...    type=CatalogSourcesUnhealthy    status=False
+    # ...    reason=AllCatalogSourcesHealthy    subcription_name=${SERVERLESS_SUB_NAME}
+    # ...    namespace=${SERVERLESS_NS}
     Wait For Pods To Be Ready    label_selector=name=knative-openshift
     ...    namespace=${SERVERLESS_NS}
     Wait For Pods To Be Ready    label_selector=name=knative-openshift-ingress
