@@ -13,6 +13,12 @@ spec:
     kserve:
       defaultDeploymentMode: Serverless
       managementState: <kserve_value>
+      serving:
+        ingressGateway:
+          certificate:
+            type: SelfSigned
+        managementState: Managed
+        name: knative-serving
     modelmeshserving:
       managementState: <modelmeshserving_value>
     ray:
