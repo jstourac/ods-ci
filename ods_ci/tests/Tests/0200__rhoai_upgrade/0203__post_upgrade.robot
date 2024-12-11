@@ -72,12 +72,15 @@ Verify Culler is Enabled
 
 Verify Notebook Has Not Restarted
     [Documentation]    Verify Notbook pod has not restarted after the upgrade
-    [Tags]      Upgrade     AutomationBug       RHOAIENG-14840
+    [Tags]      Upgrade
+    ${notebook_name}=    Set Variable    jupyter-nb-ldap-2dadmin2
+    ${notebook_pod_name}=    Set Variable    ${notebook_name}-0
     # robocop:disable
     ${return_code}    ${new_timestamp}    Run And Return Rc And Output
-    ...    oc get pod -n ${NOTEBOOKS_NAMESPACE} jupyter-nb-ldap-2dadmin2-0 --no-headers --output='custom-columns=TIMESTAMP:.metadata.creationTimestamp'
+    ...    oc get pod -n ${NOTEBOOKS_NAMESPACE} ${notebook_pod_name} --no-headers --output='custom-columns=TIMESTAMP:.metadata.creationTimestamp'
     Should Be Equal As Integers     ${return_code}      0
     Should Be Equal     ${timestamp}        ${new_timestamp}        msg=Running notebook pod has restarted
+    [Teardown]    Terminate Running Notebook    ${notebook_name}
 
 Verify Custom Image Is Present
     [Documentation]    Verify Custom Noteboook is not deleted after the upgrade
@@ -322,6 +325,13 @@ Delete OOTB Image
     ...    namespace=${APPLICATIONS_NAMESPACE}
     IF    not ${status}    Fail    Notebook image is deleted after the upgrade
     IF    not ${IS_SELF_MANAGED}    Managed RHOAI Upgrade Test Teardown
+
+Terminate Running Notebook
+    [Documentation]    Terminates the running notebook instance
+    [Arguments]     ${notebook_name}
+    ${return_code}    ${cmd_output}    Run And Return Rc And Output
+    ...    oc delete Notebook.kubeflow.org -n ${NOTEBOOKS_NAMESPACE} ${notebook_name}
+    Should Be Equal As Integers    ${return_code}    0    msg=${cmd_output}
 
 Managed RHOAI Upgrade Test Teardown
     # robocop: off=too-many-calls-in-keyword

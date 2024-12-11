@@ -24,9 +24,10 @@ Long Running Jupyter Notebook
     [Tags]      Upgrade
     Launch Notebook
     Add And Run JupyterLab Code Cell In Active Notebook     ${CODE}
+    ${notebook_pod_name}=    Set Variable    jupyter-nb-ldap-2dadmin2-0
     # robocop:disable
     ${return_code}    ${timestamp} =    Run And Return Rc And Output
-    ...    oc get pod -n ${NOTEBOOKS_NAMESPACE} jupyter-nb-ldap-2dadmin2-0 --no-headers --output='custom-columns=TIMESTAMP:.metadata.creationTimestamp'
+    ...    oc get pod -n ${NOTEBOOKS_NAMESPACE} ${notebook_pod_name} --no-headers --output='custom-columns=TIMESTAMP:.metadata.creationTimestamp'
     Should Be Equal As Integers     ${return_code}      0
     Set Global Variable     ${timestamp}  # robocop: disable
     Close Browser
@@ -79,7 +80,7 @@ PyTorch Image Workload Test
 *** Keywords ***
 Launch Notebook
     [Documentation]    Launch notebook for the suite
-    [Arguments]     ${notbook_image}=minimal-notebook
+    [Arguments]     ${notebook_image}=minimal-notebook
     ...    ${username}=${TEST_USER2.USERNAME}
     ...    ${password}=${TEST_USER2.PASSWORD}
     ...    ${auth_type}=${TEST_USER2.AUTH_TYPE}
@@ -94,7 +95,7 @@ Launch Notebook
     Fix Spawner Status
     # robocop: disable
     Spawn Notebook With Arguments
-    ...    image=${notbook_image}
+    ...    image=${notebook_image}
     ...    username=${username}
     ...    password=${password}
     ...    auth_type=${auth_type}
