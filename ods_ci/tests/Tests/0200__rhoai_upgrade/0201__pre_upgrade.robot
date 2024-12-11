@@ -34,6 +34,9 @@ Test Tags           PreUpgrade
 ${CUSTOM_CULLER_TIMEOUT}    60000
 ${S_SIZE}                   25
 ${DW_PROJECT_CREATED}       False
+${CODE}     while True: import time ; time.sleep(10); print ("Hello")
+${UPGRADE_NS}    upgrade
+${UPGRADE_CONFIG_MAP}    upgrade-config-map
 
 
 *** Test Cases ***
@@ -246,8 +249,44 @@ Model Registry Pre Upgrade Set Up
     [Tags]      Upgrade     ModelRegistryUpgrade
     Model Registry Pre Upgrade Scenario
 
+Long Running Jupyter Notebook
+    [Documentation]    Launch a long running notebook before the upgrade
+    [Tags]      Upgrade
+    Launch Notebook
+    Add And Run JupyterLab Code Cell In Active Notebook     ${CODE}
+
+    # Get the notebook pod creation timestamp
+    ${notebook_pod_name}=    Set Variable    jupyter-nb-ldap-2dadmin2-0
+    ${return_code}    ${ntb_creation_timestamp} =    Run And Return Rc And Output
+    ...    oc get pod -n ${NOTEBOOKS_NAMESPACE} ${notebook_pod_name} --no-headers --output='custom-columns=TIMESTAMP:.metadata.creationTimestamp'    # robocop: disable: line-too-long
+    Should Be Equal As Integers     ${return_code}    0    msg=${ntb_creation_timestamp}
+
+    # Save the timestamp to the OpenShift ConfigMap so it can be used in test in the next phase
+    ${return_code}    ${cmd_output} =    Run And Return Rc And Output
+    ...    oc create namespace ${UPGRADE_NS}
+    Should Be Equal As Integers     ${return_code}    0    msg=${cmd_output}
+    ${return_code}    ${cmd_output} =    Run And Return Rc And Output
+    ...    oc create configmap ${UPGRADE_CONFIG_MAP} -n ${UPGRADE_NS} --from-literal=ntb_creation_timestamp=${ntb_creation_timestamp}    # robocop: disable: line-too-long
+    Should Be Equal As Integers     ${return_code}    0    msg=${cmd_output}
+
+    Close Browser
+
 
 *** Keywords ***
+Launch Notebook
+    [Documentation]    Launch notebook for the suite
+    [Arguments]     ${notebook_image}=minimal-notebook
+    ...    ${username}=${TEST_USER2.USERNAME}
+    ...    ${password}=${TEST_USER2.PASSWORD}
+    ...    ${auth_type}=${TEST_USER2.AUTH_TYPE}
+    Begin Web Test    username=${username}    password=${password}    auth_type=${auth_type}
+    Launch Jupyter From RHODS Dashboard Link
+    Spawn Notebook With Arguments
+    ...    image=${notebook_image}
+    ...    username=${username}
+    ...    password=${password}
+    ...    auth_type=${auth_type}
+
 Dashboard Suite Setup
     [Documentation]    Basic suite setup
     Set Library Search Order    SeleniumLibrary
