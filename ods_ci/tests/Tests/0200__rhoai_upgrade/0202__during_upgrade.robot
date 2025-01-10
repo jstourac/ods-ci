@@ -20,16 +20,26 @@ Upgrade RHODS
     [Tags]      ODS-1766        Upgrade
     ${initial_version} =    Get RHODS Version
     ${initial_creation_date} =      Get Operator Pod Creation Date
-    # robocop:disable
+
+    # Approve the Install Plan to commence the upgrade
     ${return_code}    ${output} =       Run And Return Rc And Output
-    ...    oc patch installplan $(oc get installplans -n ${OPERATOR_NAMESPACE} | grep -v NAME | awk '{print $1}') -n ${OPERATOR_NAMESPACE} --type='json' -p '[{"op": "replace", "path": "/spec/approved", "value": true}]'
-    Should Be Equal As Integers
-    ...    ${return_code}
-    ...    0
-    ...    msg=Error while upgrading RHODS
-    Sleep
-    ...    30s
-    ...    reason=wait for thirty seconds until old CSV is removed and new one is ready
+    ...    oc patch installplan $(oc get installplans -n ${OPERATOR_NAMESPACE} | grep -v NAME | awk '{print $1}') -n ${OPERATOR_NAMESPACE} --type='json' -p '[{"op": "replace", "path": "/spec/approved", "value": true}]'    # robocop: disable: line-too-long
+    Should Be Equal As Integers    ${return_code}    0
+    ...    msg=Error while approving the RHOAI Install Plan
+
+    # Assure that the existing instance of the DataScienceCluster object switches to Progressing phase
+    ${return_code}    ${output} =       Run And Return Rc And Output
+    ...    oc wait --for=jsonpath='{.status.phase}'='Progressing' --timeout=60s DataScienceCluster $(oc get DataScienceCluster | grep -v NAME | awk '{print $1}')    # robocop: disable: line-too-long
+    Should Be Equal As Integers    ${return_code}    0
+    ...    msg=Error waiting for the DSC instance to switch to Progressing phase
+
+    # Wait until the DataScienceCluster instance switches to the Ready phase at which point all the components should be fully reconciled
+    ${return_code}    ${output} =       Run And Return Rc And Output
+    ...    oc wait --for=jsonpath='{.status.phase}'='Ready' --timeout=666s DataScienceCluster $(oc get DataScienceCluster | grep -v NAME | awk '{print $1}')    # robocop: disable: line-too-long
+    Should Be Equal As Integers    ${return_code}    0
+    ...    msg=Error waiting for the DSC instance to switch to Ready phase
+
+    # Check the metadata to assure the RHOAI was upgraded per expectations
     RHODS Version Should Be Greater Than        ${initial_version}
     Operator Pod Creation Date Should Be Updated        ${initial_creation_date}
     OpenShiftLibrary.Wait For Pods Status       namespace=${OPERATOR_NAMESPACE}     timeout=300
@@ -67,16 +77,8 @@ Launch Notebook
     ...    ${username}=${TEST_USER2.USERNAME}
     ...    ${password}=${TEST_USER2.PASSWORD}
     ...    ${auth_type}=${TEST_USER2.AUTH_TYPE}
-    # robocop: disable
     Begin Web Test    username=${username}    password=${password}    auth_type=${auth_type}
-    Login To RHODS Dashboard    ${username}    ${password}    ${auth_type}
-    Wait For RHODS Dashboard To Load
     Launch Jupyter From RHODS Dashboard Link
-    Login To Jupyterhub    ${username}    ${password}    ${auth_type}
-    ${authorization_required} =    Is Service Account Authorization Required
-    IF    ${authorization_required}    Authorize JupyterLab Service Account
-    Fix Spawner Status
-    # robocop: disable
     Spawn Notebook With Arguments
     ...    image=${notebook_image}
     ...    username=${username}
