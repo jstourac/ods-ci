@@ -220,6 +220,16 @@ Verify RHODS Installation
       Apply DataScienceCluster CustomResource    dsc_name=${DSC_NAME}
   END
 
+  # Wait for DSCI to be in Ready state and log its status
+  Log    Waiting for DSCInitialization to be in Ready state    console=yes
+  Wait For DSCI Ready State    ${DSCI_NAME}    ${OPERATOR_NAMESPACE}
+  Log DSCI Status    ${DSCI_NAME}    ${OPERATOR_NAMESPACE}
+
+  # Wait for DSC to be in Ready state and log component status
+  Log    Waiting for DataScienceCluster to be in Ready state    console=yes
+  Wait For DSC Ready State    ${OPERATOR_NAMESPACE}    ${DSC_NAME}
+  Log DSC Component Status    ${DSC_NAME}    ${OPERATOR_NAMESPACE}
+
   ${workbenches} =    Is Component Enabled    workbenches    ${DSC_NAME}
   IF    "${workbenches}" == "true"
     Wait For Deployment Replica To Be Ready    namespace=${APPLICATIONS_NAMESPACE}
@@ -1075,3 +1085,159 @@ Deploy NFS Provisioner
     Log    ${output}    console=yes
     Wait For Pods To Be Ready    label_selector=nfsprovisioner_cr=${nfs_provisioner_name}
     ...    namespace=${NFS_OP_NS}
+
+Log DSCI Status
+    [Documentation]    Log detailed status information for DSCInitialization
+    [Arguments]    ${dsci_name}    ${namespace}
+    Log To Console    ===========================================
+    Log To Console    DSCInitialization Status Report
+    Log To Console    ===========================================
+
+    # Get and log basic DSCI information
+    ${rc}    ${dsci_output} =    Run And Return Rc And Output
+    ...    oc get DSCInitialization ${dsci_name} -n ${namespace} -o wide
+    IF    ${rc} == 0
+        Log To Console    DSCI Basic Info:
+        Log To Console    ${dsci_output}
+    ELSE
+        Log To Console    ERROR: Could not retrieve DSCI ${dsci_name}    level=ERROR
+        RETURN
+    END
+
+    # Get and log DSCI status phase
+    ${rc}    ${phase} =    Run And Return Rc And Output
+    ...    oc get DSCInitialization ${dsci_name} -n ${namespace} -o jsonpath='{.status.phase}'
+    IF    ${rc} == 0
+        Log To Console    DSCI Phase: ${phase}
+    ELSE
+        Log To Console    DSCI Phase: Unknown
+    END
+
+    # Get and log DSCI conditions
+    ${rc}    ${conditions} =    Run And Return Rc And Output
+    ...    oc get DSCInitialization ${dsci_name} -n ${namespace} -o jsonpath='{.status.conditions[*]}'
+    IF    ${rc} == 0 and "${conditions}" != ""
+        Log To Console    DSCI Conditions:
+        ${rc2}    ${conditions_yaml} =    Run And Return Rc And Output
+        ...    oc get DSCInitialization ${dsci_name} -n ${namespace} -o jsonpath='{.status.conditions}' | jq '.'
+        IF    ${rc2} == 0
+            Log To Console    ${conditions_yaml}
+        ELSE
+            Log To Console    ${conditions}
+        END
+    ELSE
+        Log To Console    DSCI Conditions: No conditions available
+    END
+
+    # Log full DSCI YAML if needed for debugging
+    ${debug_level} =    Get Variable Value    ${DEBUG_DSCI}    false
+    IF    "${debug_level}" == "true"
+        Log To Console    Full DSCI YAML:
+        ${rc}    ${dsci_yaml} =    Run And Return Rc And Output
+        ...    oc get DSCInitialization ${dsci_name} -n ${namespace} -o yaml
+        IF    ${rc} == 0
+            Log To Console    ${dsci_yaml}
+        END
+    END
+    Log To Console    ===========================================
+
+Log DSC Component Status
+    [Documentation]    Log detailed status information for DataScienceCluster including per-component status
+    [Arguments]    ${dsc_name}    ${namespace}
+    Log To Console    ===========================================
+    Log To Console    DataScienceCluster Component Status Report
+    Log To Console    ===========================================
+
+    # Get and log basic DSC information
+    ${rc}    ${dsc_output} =    Run And Return Rc And Output
+    ...    oc get DataScienceCluster ${dsc_name} -n ${namespace} -o wide
+    IF    ${rc} == 0
+        Log To Console    DSC Basic Info:
+        Log To Console    ${dsc_output}
+    ELSE
+        Log To Console    ERROR: Could not retrieve DSC ${dsc_name}    level=ERROR
+        RETURN
+    END
+
+    # Get and log DSC status phase
+    ${rc}    ${phase} =    Run And Return Rc And Output
+    ...    oc get DataScienceCluster ${dsc_name} -n ${namespace} -o jsonpath='{.status.phase}'
+    IF    ${rc} == 0
+        Log To Console    DSC Phase: ${phase}
+    ELSE
+        Log To Console    DSC Phase: Unknown
+    END
+
+    # Log component status for each component
+    Log To Console    Component Status Details:
+    FOR    ${component}    IN    @{COMPONENT_LIST}
+        Log Component Status Details    ${dsc_name}    ${namespace}    ${component}
+    END
+
+    # Get and log DSC overall conditions
+    ${rc}    ${conditions} =    Run And Return Rc And Output
+    ...    oc get DataScienceCluster ${dsc_name} -n ${namespace} -o jsonpath='{.status.conditions[*]}'
+    IF    ${rc} == 0 and "${conditions}" != ""
+        Log To Console    DSC Overall Conditions:
+        ${rc2}    ${conditions_yaml} =    Run And Return Rc And Output
+        ...    oc get DataScienceCluster ${dsc_name} -n ${namespace} -o jsonpath='{.status.conditions}' | jq '.'
+        IF    ${rc2} == 0
+            Log To Console    ${conditions_yaml}
+        ELSE
+            Log To Console    ${conditions}
+        END
+    ELSE
+        Log To Console    DSC Overall Conditions: No conditions available
+    END
+
+    # Log full DSC YAML if needed for debugging
+    ${debug_level} =    Get Variable Value    ${DEBUG_DSC}    false
+    IF    "${debug_level}" == "true"
+        Log To Console    Full DSC YAML:
+        ${rc}    ${dsc_yaml} =    Run And Return Rc And Output
+        ...    oc get DataScienceCluster ${dsc_name} -n ${namespace} -o yaml
+        IF    ${rc} == 0
+            Log To Console    ${dsc_yaml}
+        END
+    END
+    Log To Console    ===========================================
+
+Log Component Status Details
+    [Documentation]    Log detailed status for a specific DSC component
+    [Arguments]    ${dsc_name}    ${namespace}    ${component}
+
+    # Get component management state
+    ${rc}    ${mgmt_state} =    Run And Return Rc And Output
+    ...    oc get DataScienceCluster ${dsc_name} -n ${namespace} -o jsonpath='{.spec.components.${component}.managementState}'
+    IF    ${rc} != 0 or "${mgmt_state}" == ""
+        ${mgmt_state} =    Set Variable    Removed
+    END
+
+    # Get component ready condition
+    ${rc}    ${ready_condition} =    Run And Return Rc And Output
+    ...    oc get DataScienceCluster ${dsc_name} -n ${namespace} -o jsonpath='{.status.conditions[?(@.type=="${component}Ready")].status}'
+    IF    ${rc} != 0 or "${ready_condition}" == ""
+        ${ready_condition} =    Set Variable    Unknown
+    END
+
+    # Get component ready reason and message
+    ${rc}    ${ready_reason} =    Run And Return Rc And Output
+    ...    oc get DataScienceCluster ${dsc_name} -n ${namespace} -o jsonpath='{.status.conditions[?(@.type=="${component}Ready")].reason}'
+    IF    ${rc} != 0 or "${ready_reason}" == ""
+        ${ready_reason} =    Set Variable    N/A
+    END
+
+    ${rc}    ${ready_message} =    Run And Return Rc And Output
+    ...    oc get DataScienceCluster ${dsc_name} -n ${namespace} -o jsonpath='{.status.conditions[?(@.type=="${component}Ready")].message}'
+    IF    ${rc} != 0 or "${ready_message}" == ""
+        ${ready_message} =    Set Variable    N/A
+    END
+
+    # Format and log the component status
+    ${status_line} =    Set Variable    ${component}: Management=${mgmt_state}, Ready=${ready_condition}, Reason=${ready_reason}
+    Log To Console    - ${status_line}
+
+    # Log message if it contains useful information and isn't just "N/A"
+    IF    "${ready_message}" != "N/A" and "${ready_message}" != ""
+        Log To Console        Message: ${ready_message}
+    END
